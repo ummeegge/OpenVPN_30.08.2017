@@ -4043,6 +4043,16 @@ if ($cgiparams{'TYPE'} eq 'net') {
       		goto VPNCONF_ERROR;
 	}
 
+	# Check that OpenSSL maximum of valid days will not be exceeded
+	if ($cgiparams{'TYPE'} eq 'net') {
+		if (length($cgiparams{'DAYS_VALID'}) > 6) {
+			$errormessage = $Lang::tr{'invalid input for valid till days'};
+			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
+			rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+			goto VPNCONF_ERROR;
+		}
+	}
+
 	if ($cgiparams{'ENABLED'} !~ /^(on|off)$/) {
 	    $errormessage = $Lang::tr{'invalid input'};
 	    goto VPNCONF_ERROR;
@@ -4232,6 +4242,14 @@ if ($cgiparams{'TYPE'} eq 'net') {
 					$errormessage = $Lang::tr{'a ca certificate with this name already exists'};
 					goto VPNCONF_ERROR;
 				}
+			}
+		}
+
+		# Check that OpenSSL maximum of valid days will not be exceeded
+		if ($cgiparams{'TYPE'} eq 'host') {
+			if (length($cgiparams{'DAYS_VALID'}) > 6) {
+				$errormessage = $Lang::tr{'invalid input for valid till days'};
+				goto VPNCONF_ERROR;
 			}
 		}
 
