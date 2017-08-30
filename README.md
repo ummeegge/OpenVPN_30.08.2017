@@ -1,6 +1,8 @@
 # OpenVPN_30.08.2017
 Integration of OpenVPN-2.4.x into IPFire environment, includes also bufixes from current Bugzilla.
 
+Files based on Core 113.
+
 Feature list:
 All new features will now be integrated into one dev version. The "Minimal solution" will be skippt but only be marked in this README file.
 
