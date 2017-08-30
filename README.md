@@ -43,5 +43,5 @@ Bug fixes from IPFire´s Bugzilla entries:
 - https://bugzilla.ipfire.org/show_bug.cgi?id=11364
 - https://bugzilla.ipfire.org/show_bug.cgi?id=11307
 - https://bugzilla.ipfire.org/show_bug.cgi?id=10482
-- https://bugzilla.ipfire.org/show_bug.cgi?id=11424
+- https://bugzilla.ipfire.org/show_bug.cgi?id=11424 which is not tested until now and are currently not integrated.
 
