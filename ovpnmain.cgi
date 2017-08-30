@@ -4198,6 +4198,16 @@ if ($cgiparams{'TYPE'} eq 'net') {
 		goto VPNCONF_ERROR;
 	    }
 
+		# Check for RW if cert name is already set
+		if ($cgiparams{'TYPE'} eq 'host') {
+			foreach my $key (keys %confighash) {
+				if ($confighash{$key}[2] eq $cgiparams{'CERT_NAME'}) {
+					$errormessage = $Lang::tr{'a ca certificate with this name already exists'};
+					goto VPNCONF_ERROR;
+				}
+			}
+		}
+
 	    # Replace empty strings with a .
 	    (my $ou = $cgiparams{'CERT_OU'}) =~ s/^\s*$/\./;
 	    (my $city = $cgiparams{'CERT_CITY'}) =~ s/^\s*$/\./;
