@@ -241,6 +241,11 @@ sub writeserverconf {
     else 
 	{ print CONF "tun-mtu $sovpnsettings{'DMTU'}\n"; }
 
+	# If mtu != 1500 and mssfix and fragment is deactivated, disable --mssfix to prevent mssfix/fragment warning in connection log
+	if ($sovpnsettings{'MSSFIX'} ne 'on' && $sovpnsettings{'FRAGMENT'} eq '' && $sovpnsettings{'DMTU'} ne '1500') {
+		print CONF "mssfix 0\n";
+	}
+
     if ($vpnsettings{'ROUTES_PUSH'} ne '') {
 		@temp = split(/\n/,$vpnsettings{'ROUTES_PUSH'});
 		foreach (@temp)
@@ -961,6 +966,12 @@ unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General
 		}
 	}
   }
+
+  # If mtu != 1500 and mssfix and fragment is deactivated, disable --mssfix to prevent mssfix/fragment warning in connection log
+  if ($cgiparams{'MSSFIX'} ne 'on' && $cgiparams{'FRAGMENT'} eq '' && $cgiparams{'DMTU'} ne '1500') {
+	print SERVERCONF "mssfix 0\n";
+  }
+
   print SERVERCONF "# Auth. Server\n"; 
   print SERVERCONF "tls-server\n"; 
   print SERVERCONF "ca ${General::swroot}/ovpn/ca/cacert.pem\n"; 
@@ -1061,7 +1072,12 @@ unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General
 		}
         }
   }
- 
+
+  # If mtu != 1500 and mssfix and fragment is deactivated, disable --mssfix to prevent mssfix/fragment warning in connection log
+  if ($cgiparams{'MSSFIX'} ne 'on' && $cgiparams{'FRAGMENT'} eq '' && $cgiparams{'DMTU'} ne '1500') {
+	print CLIENTCONF "mssfix 0\n";
+  }
+
   print CLIENTCONF "ns-cert-type server\n";   
   print CLIENTCONF "# Auth. Client\n"; 
   print CLIENTCONF "tls-client\n"; 
@@ -2173,6 +2189,12 @@ if ($confighash{$cgiparams{'KEY'}}[3] eq 'net'){
 		}
 	}
    }
+
+   # If mtu != 1500 and mssfix and fragment is deactivated, disable --mssfix to prevent mssfix/fragment warning in connection log
+   if ($confighash{$cgiparams{'KEY'}}[23] ne 'on' && $confighash{$cgiparams{'KEY'}}[24] eq '' && $tunmtu ne '1500') {
+		print CLIENTCONF "mssfix 0\n";
+   }
+
    print CLIENTCONF "ns-cert-type server\n";   
    print CLIENTCONF "# Auth. Client\n"; 
    print CLIENTCONF "tls-client\n"; 
@@ -2252,6 +2274,11 @@ else
 	{ print CLIENTCONF "tun-mtu 1500\r\n"; }
     else
 	{ print CLIENTCONF "tun-mtu $vpnsettings{'DMTU'}\r\n"; }
+
+	# If mtu != 1500 and mssfix and fragment is deactivated, disable --mssfix to prevent mssfix/fragment warning in connection log
+	if ($vpnsettings{'MSSFIX'} ne 'on' && $vpnsettings{'FRAGMENT'} eq '' && $vpnsettings{'DMTU'} ne '1500') {
+		print CLIENTCONF "mssfix 0\r\n";
+	}
 
     if ( $vpnsettings{'ENABLED'} eq 'on'){
     	print CLIENTCONF "remote $vpnsettings{'VPN_IP'} $vpnsettings{'DDEST_PORT'}\r\n";
