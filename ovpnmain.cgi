@@ -1078,7 +1078,16 @@ unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General
 	print CLIENTCONF "mssfix 0\n";
   }
 
-  print CLIENTCONF "ns-cert-type server\n";   
+  # Check host certificate if X509 is RFC3280 compliant.
+  # If not, old --ns-cert-type directive will be used.
+  # If appropriate key usage extension exists, new --remote-cert-tls directive will be used.
+  my $hostcert = `/usr/bin/openssl x509 -text -in ${General::swroot}/ovpn/certs/servercert.pem`;
+  if ($hostcert !~ /TLS Web Server Authentication/) {
+       print CLIENTCONF "ns-cert-type server\n";
+  } else {
+       print CLIENTCONF "remote-cert-tls server\n";
+  }
+
   print CLIENTCONF "# Auth. Client\n"; 
   print CLIENTCONF "tls-client\n"; 
   print CLIENTCONF "# Cipher\n"; 
@@ -2195,7 +2204,16 @@ if ($confighash{$cgiparams{'KEY'}}[3] eq 'net'){
 		print CLIENTCONF "mssfix 0\n";
    }
 
-   print CLIENTCONF "ns-cert-type server\n";   
+   # Check host certificate if X509 is RFC3280 compliant.
+   # If not, old --ns-cert-type directive will be used.
+   # If appropriate key usage extension exists, new --remote-cert-tls directive will be used.
+   my $hostcert = `/usr/bin/openssl x509 -text -in ${General::swroot}/ovpn/certs/servercert.pem`;
+   if ($hostcert !~ /TLS Web Server Authentication/) {
+               print CLIENTCONF "ns-cert-type server\n";
+   } else {
+               print CLIENTCONF "remote-cert-tls server\n";
+   }
+
    print CLIENTCONF "# Auth. Client\n"; 
    print CLIENTCONF "tls-client\n"; 
    print CLIENTCONF "# Cipher\n";
@@ -2359,7 +2377,17 @@ else
         print CLIENTCONF "comp-lzo\r\n";
     }
     print CLIENTCONF "verb 3\r\n";
-    print CLIENTCONF "ns-cert-type server\r\n";
+
+	# Check host certificate if X509 is RFC3280 compliant.
+	# If not, old --ns-cert-type directive will be used.
+	# If appropriate key usage extension exists, new --remote-cert-tls directive will be used.
+	my $hostcert = `/usr/bin/openssl x509 -text -in ${General::swroot}/ovpn/certs/servercert.pem`;
+	if ($hostcert !~ /TLS Web Server Authentication/) {
+		print CLIENTCONF "ns-cert-type server\r\n";
+	} else {
+		print CLIENTCONF "remote-cert-tls server\r\n";
+	}
+
     print CLIENTCONF "verify-x509-name $vpnsettings{ROOTCERT_HOSTNAME} name\r\n";
     if ($vpnsettings{MSSFIX} eq 'on') {
 	print CLIENTCONF "mssfix\r\n";
