@@ -1345,12 +1345,15 @@ END
 		<form method='post'><input type='hidden' name='AREUSURE' value='yes' />
 		<input type='hidden' name='KEY' value='$cgiparams{'KEY'}' />
 			<select name='DHLENGHT'>
-				<option value='1024' $selected{'DHLENGHT'}{'1024'}>1024 $Lang::tr{'bit'}</option>
-				<option value='2048' $selected{'DHLENGHT'}{'2048'}>2048 $Lang::tr{'bit'}</option>
-				<option value='3072' $selected{'DHLENGHT'}{'3072'}>3072 $Lang::tr{'bit'}</option>
-				<option value='4096' $selected{'DHLENGHT'}{'4096'}>4096 $Lang::tr{'bit'}</option>
-			</select>
-		</td>
+				<optgroup label="$Lang::tr{'Weak algorithm'}">
+					<option value='1024' $selected{'DHLENGHT'}{'1024'}>1024 $Lang::tr{'bit'}</option>
+				<optgroup label="$Lang::tr{'Medium algorithm'}">
+					<option value='2048' $selected{'DHLENGHT'}{'2048'}>2048 $Lang::tr{'bit'}</option>
+				<optgroup label="$Lang::tr{'Strong algorithm'}">
+					<option value='3072' $selected{'DHLENGHT'}{'3072'}>3072 $Lang::tr{'bit'}</option>
+					<option value='4096' $selected{'DHLENGHT'}{'4096'}>4096 $Lang::tr{'bit'}</option>
+				</optgroup>
+			</select></td>
 	</tr>
 	<tr><td colspan='4'><br></td></tr>
 	</table>
@@ -1874,7 +1877,8 @@ END
 	    }
 	} else {	# child
 	    unless (exec ('/usr/bin/openssl', 'req', '-x509', '-nodes',
-			'-days', '999999', '-newkey', 'rsa:4096', '-sha512',
+			'-days', '999999',
+			'-newkey', "$cgiparams{'ROOTKEYLENGHT'}", '-sha512',
 			'-keyout', "${General::swroot}/ovpn/ca/cakey.pem",
 			'-out', "${General::swroot}/ovpn/ca/cacert.pem",
 			'-config',"${General::swroot}/ovpn/openssl/ovpn.cnf")) {
@@ -1905,7 +1909,7 @@ END
 	    }
 	} else {	# child
 	    unless (exec ('/usr/bin/openssl', 'req', '-nodes',
-			'-newkey', 'rsa:2048',
+			'-newkey', "$cgiparams{'HOSTKEYLENGHT'}",
 			'-keyout', "${General::swroot}/ovpn/certs/serverkey.pem",
 			'-out', "${General::swroot}/ovpn/certs/serverreq.pem",
 			'-extensions', 'server',
@@ -2025,17 +2029,53 @@ END
 	}
 	print <<END;
 	    </select></td>
-	<tr><td class='base'>$Lang::tr{'ovpn dh'}:</td>
-		<td class='base'><select name='DHLENGHT'>
-				<option value='1024' $selected{'DHLENGHT'}{'1024'}>1024 $Lang::tr{'bit'}</option>
-				<option value='2048' $selected{'DHLENGHT'}{'2048'}>2048 $Lang::tr{'bit'}</option>
-				<option value='3072' $selected{'DHLENGHT'}{'3072'}>3072 $Lang::tr{'bit'}</option>
-				<option value='4096' $selected{'DHLENGHT'}{'4096'}>4096 $Lang::tr{'bit'}</option>
+
+	<tr><td>&nbsp;</td>
+	<tr><td class='base'>$Lang::tr{'ovpn keylenghtroot'}:</td>
+		<td class='base'><select name='ROOTKEYLENGHT'>
+			<optgroup label="$Lang::tr{'Medium algorithm'}">
+				<option value='4096' $selected{'ROOTKEYLENGHT'}{'rsa:4096'}>4096 $Lang::tr{'bit'} RSA</option>
+			<optgroup label="$Lang::tr{'Strong algorithm'}">
+				<option value='6144' $selected{'ROOTKEYLENGHT'}{'rsa:6144'}>6144 $Lang::tr{'bit'} RSA</option>
+				<option value='8192' $selected{'ROOTKEYLENGHT'}{'rsa:8192'}>8192 $Lang::tr{'bit'} RSA</option>
+				<option value='12288' $selected{'ROOTKEYLENGHT'}{'rsa:12288'}>12288 $Lang::tr{'bit'} RSA</option>
+			</optgroup>
+		</select>
+	</tr>
+
+	<tr><td>&nbsp;</td>
+
+	<tr><td class='base'>$Lang::tr{'ovpn keylenghthost'}:</td>
+		<td class='base'>
+			<select name='HOSTKEYLENGHT'>
+				<optgroup label="$Lang::tr{'Medium algorithm'}">
+					<option value='2048' $selected{'HOSTKEYLENGHT'}{'rsa:2048'}>2048 $Lang::tr{'bit'} RSA</option>
+					<option value='4096' $selected{'HOSTKEYLENGHT'}{'rsa:4096'}>4096 $Lang::tr{'bit'} RSA</option>
+				<optgroup label="$Lang::tr{'Strong algorithm'}">
+					<option value='6144' $selected{'HOSTKEYLENGHT'}{'rsa:6144'}>6144 $Lang::tr{'bit'} RSA</option>
+					<option value='8192' $selected{'HOSTKEYLENGHT'}{'rsa:8192'}>8192 $Lang::tr{'bit'} RSA</option>
+					<option value='12288' $selected{'HOSTKEYLENGHT'}{'rsa:12288'}>12288 $Lang::tr{'bit'} RSA</option>
+				</optgroup>
 			</select>
 		</td>
 	</tr>
 
 	<tr><td>&nbsp;</td>
+
+	<tr><td class='base'>$Lang::tr{'ovpn dh'}:</td>
+		<td class='base'><select name='DHLENGHT'>
+			<optgroup label="$Lang::tr{'Weak algorithm'}">
+				<option value='1024' $selected{'DHLENGHT'}{'1024'}>1024 $Lang::tr{'bit'}</option>
+			<optgroup label="$Lang::tr{'Medium algorithm'}">
+				<option value='2048' $selected{'DHLENGHT'}{'2048'}>2048 $Lang::tr{'bit'}</option>
+			<optgroup label="$Lang::tr{'Weak algorithm'}">
+				<option value='3072' $selected{'DHLENGHT'}{'3072'}>3072 $Lang::tr{'bit'}</option>
+				<option value='4096' $selected{'DHLENGHT'}{'4096'}>4096 $Lang::tr{'bit'}</option>
+			</optgroup>
+		</select></td>
+	</tr>
+
+	<tr><td>&nbsp;</td><tr><td>&nbsp;</td>
 	    <td><input type='submit' name='ACTION' value='$Lang::tr{'generate root/host certificates'}' /></td>
 	    <td>&nbsp;</td><td>&nbsp;</td></tr> 
 	<tr><td class='base' colspan='4' align='left'>
@@ -2879,13 +2919,16 @@ print <<END;
     </tr>	
     <tr><td class='base'>$Lang::tr{'ovpn ha'}</td>
 		<td><select name='DAUTH'>
+			<optgroup label="$Lang::tr{'Strong algorithm'}">
 				<option value='whirlpool'		$selected{'DAUTH'}{'whirlpool'}>Whirlpool (512 $Lang::tr{'bit'})</option>
 				<option value='SHA512'			$selected{'DAUTH'}{'SHA512'}>SHA2 (512 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Medium algorithm'}">
 				<option value='SHA384'			$selected{'DAUTH'}{'SHA384'}>SHA2 (384 $Lang::tr{'bit'})</option>
 				<option value='SHA256'			$selected{'DAUTH'}{'SHA256'}>SHA2 (256 $Lang::tr{'bit'})</option>
-				<option value='SHA1'			$selected{'DAUTH'}{'SHA1'}>SHA1 (160 $Lang::tr{'bit'}, $Lang::tr{'vpn weak'})</option>
-			</select>
-		</td>
+			<optgroup label="$Lang::tr{'Weak algorithm'}">
+				<option value='SHA1'			$selected{'DAUTH'}{'SHA1'}>SHA1 (160 $Lang::tr{'bit'})</option>
+			</optgroup>
+		</select></td>
 		<td>$Lang::tr{'openvpn default'}: <span class="base">SHA1 (160 $Lang::tr{'bit'})</span></td>
     </tr>
 </table>
@@ -4296,6 +4339,11 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	    (my $city = $cgiparams{'CERT_CITY'}) =~ s/^\s*$/\./;
 	    (my $state = $cgiparams{'CERT_STATE'}) =~ s/^\s*$/\./;
 
+	    # Investigate host serverkey lenght
+	    my $keylenght = `/usr/bin/openssl rsa -text -noout -in "${General::swroot}/ovpn/certs/serverkey.pem"`;
+	    $keylenght =~ m/(\d+)/;
+	    $keylenght = $1;
+
 	    # Create the Host certificate request client
 	    my $pid = open(OPENSSL, "|-");
 	    $SIG{ALRM} = sub { $errormessage = $Lang::tr{'broken pipe'}; goto VPNCONF_ERROR;};
@@ -4318,7 +4366,7 @@ if ($cgiparams{'TYPE'} eq 'net') {
 		}
 	    } else {	# child
 		unless (exec ('/usr/bin/openssl', 'req', '-nodes',
-			'-newkey', 'rsa:2048',
+			'-newkey', "rsa:$keylenght",
 			'-keyout', "${General::swroot}/ovpn/certs/$cgiparams{'NAME'}key.pem",
 			'-out', "${General::swroot}/ovpn/certs/$cgiparams{'NAME'}req.pem",
 			'-config',"${General::swroot}/ovpn/openssl/ovpn.cnf")) {
@@ -4619,6 +4667,9 @@ if ($cgiparams{'TYPE'} eq 'net') {
     }
     $checked{'PMTU_DISCOVERY'}{$cgiparams{'PMTU_DISCOVERY'}} = 'checked=\'checked\'';
 
+    $selected{'DCIPHER'}{'AES-256-GCM'} = '';
+    $selected{'DCIPHER'}{'AES-192-GCM'} = '';
+    $selected{'DCIPHER'}{'AES-128-GCM'} = '';
     $selected{'DCIPHER'}{'CAMELLIA-256-CBC'} = '';
     $selected{'DCIPHER'}{'CAMELLIA-192-CBC'} = '';
     $selected{'DCIPHER'}{'CAMELLIA-128-CBC'} = '';
@@ -4783,30 +4834,39 @@ if ($cgiparams{'TYPE'} eq 'net') {
 
 	<tr><td class='boldbase'>$Lang::tr{'cipher'}</td>
 		<td><select name='DCIPHER'>
-				<option value='CAMELLIA-256-CBC'	$selected{'DCIPHER'}{'CAMELLIA-256-CBC'}>CAMELLIA-CBC (256 $Lang::tr{'bit'})</option>
-				<option value='CAMELLIA-192-CBC'	$selected{'DCIPHER'}{'CAMELLIA-192-CBC'}>CAMELLIA-CBC (192 $Lang::tr{'bit'})</option>
-				<option value='CAMELLIA-128-CBC'	$selected{'DCIPHER'}{'CAMELLIA-128-CBC'}>CAMELLIA-CBC (128 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Strong algorithm'}">
+				<option value='AES-256-GCM'			$selected{'DCIPHER'}{'AES-256-GCM'}>AES-GCM (256 $Lang::tr{'bit'})</option>
 				<option value='AES-256-CBC' 	 	$selected{'DCIPHER'}{'AES-256-CBC'}>AES-CBC (256 $Lang::tr{'bit'}, $Lang::tr{'default'})</option>
+				<option value='CAMELLIA-256-CBC'	$selected{'DCIPHER'}{'CAMELLIA-256-CBC'}>CAMELLIA-CBC (256 $Lang::tr{'bit'})</option>
+				<option value='AES-192-GCM' 	 	$selected{'DCIPHER'}{'AES-192-GCM'}>AES-GCM (192 $Lang::tr{'bit'})</option>
 				<option value='AES-192-CBC' 	 	$selected{'DCIPHER'}{'AES-192-CBC'}>AES-CBC (192 $Lang::tr{'bit'})</option>
+				<option value='CAMELLIA-192-CBC'	$selected{'DCIPHER'}{'CAMELLIA-192-CBC'}>CAMELLIA-CBC (192 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Medium algorithm'}">
+				<option value='AES-128-GCM' 	 	$selected{'DCIPHER'}{'AES-128-GCM'}>AES-GCM (128 $Lang::tr{'bit'})</option>
 				<option value='AES-128-CBC' 	 	$selected{'DCIPHER'}{'AES-128-CBC'}>AES-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='CAMELLIA-128-CBC'	$selected{'DCIPHER'}{'CAMELLIA-128-CBC'}>CAMELLIA-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='SEED-CBC' 		$selected{'DCIPHER'}{'SEED-CBC'}>SEED-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='CAST5-CBC' 		$selected{'DCIPHER'}{'CAST5-CBC'}>CAST5-CBC (128 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Weak algorithm'}">
 				<option value='DES-EDE3-CBC'	 	$selected{'DCIPHER'}{'DES-EDE3-CBC'}>DES-EDE3-CBC (192 $Lang::tr{'bit'})</option>
 				<option value='DESX-CBC' 		$selected{'DCIPHER'}{'DESX-CBC'}>DESX-CBC (192 $Lang::tr{'bit'})</option>
-				<option value='SEED-CBC' 		$selected{'DCIPHER'}{'SEED-CBC'}>SEED-CBC (128 $Lang::tr{'bit'})</option>
 				<option value='DES-EDE-CBC' 		$selected{'DCIPHER'}{'DES-EDE-CBC'}>DES-EDE-CBC (128 $Lang::tr{'bit'})</option>
 				<option value='BF-CBC' 			$selected{'DCIPHER'}{'BF-CBC'}>BF-CBC (128 $Lang::tr{'bit'})</option>
-				<option value='CAST5-CBC' 		$selected{'DCIPHER'}{'CAST5-CBC'}>CAST5-CBC (128 $Lang::tr{'bit'})</option>
-			</select>
-		</td>
+			</optgroup>
+		</select></td>
 
 		<td class='boldbase'>$Lang::tr{'ovpn ha'}:</td>
 		<td><select name='DAUTH'>
+			<optgroup label="$Lang::tr{'Strong algorithm'}">
 				<option value='whirlpool'		$selected{'DAUTH'}{'whirlpool'}>Whirlpool (512 $Lang::tr{'bit'})</option>
 				<option value='SHA512'			$selected{'DAUTH'}{'SHA512'}>SHA2 (512 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Medium algorithm'}">
 				<option value='SHA384'			$selected{'DAUTH'}{'SHA384'}>SHA2 (384 $Lang::tr{'bit'})</option>
 				<option value='SHA256'			$selected{'DAUTH'}{'SHA256'}>SHA2 (256 $Lang::tr{'bit'})</option>
-				<option value='SHA1'			$selected{'DAUTH'}{'SHA1'}>SHA1 (160 $Lang::tr{'bit'}, $Lang::tr{'vpn weak'})</option>
-			</select>
-		</td>
+			<optgroup label="$Lang::tr{'Weak algorithm'}">
+				<option value='SHA1'			$selected{'DAUTH'}{'SHA1'}>SHA1 (160 $Lang::tr{'bit'} Default)</option>
+			</optgroup>
+		</select></td>
 	</tr>
 	<tr><td colspan=4><hr /></td></tr><tr>
 
@@ -5161,6 +5221,9 @@ END
     $selected{'DPROTOCOL'}{'tcp'} = '';
     $selected{'DPROTOCOL'}{$cgiparams{'DPROTOCOL'}} = 'SELECTED';
 
+    $selected{'DCIPHER'}{'AES-256-GCM'} = '';
+    $selected{'DCIPHER'}{'AES-192-GCM'} = '';
+    $selected{'DCIPHER'}{'AES-128-GCM'} = '';
     $selected{'DCIPHER'}{'CAMELLIA-256-CBC'} = '';
     $selected{'DCIPHER'}{'CAMELLIA-192-CBC'} = '';
     $selected{'DCIPHER'}{'CAMELLIA-128-CBC'} = '';
@@ -5274,21 +5337,26 @@ END
 
 		<td class='boldbase' nowrap='nowrap'>$Lang::tr{'cipher'}</td>
 		<td><select name='DCIPHER'>
-				<option value='CAMELLIA-256-CBC' $selected{'DCIPHER'}{'CAMELLIA-256-CBC'}>CAMELLIA-CBC (256 $Lang::tr{'bit'})</option>
-				<option value='CAMELLIA-192-CBC' $selected{'DCIPHER'}{'CAMELLIA-192-CBC'}>CAMELLIA-CBC (192 $Lang::tr{'bit'})</option>
-				<option value='CAMELLIA-128-CBC' $selected{'DCIPHER'}{'CAMELLIA-128-CBC'}>CAMELLIA-CBC (128 $Lang::tr{'bit'})</option>
-				<option value='AES-256-CBC' $selected{'DCIPHER'}{'AES-256-CBC'}>AES-CBC (256 $Lang::tr{'bit'})</option>
-				<option value='AES-192-CBC' $selected{'DCIPHER'}{'AES-192-CBC'}>AES-CBC (192 $Lang::tr{'bit'})</option>
-				<option value='AES-128-CBC' $selected{'DCIPHER'}{'AES-128-CBC'}>AES-CBC (128 $Lang::tr{'bit'})</option>
-				<option value='DES-EDE3-CBC' $selected{'DCIPHER'}{'DES-EDE3-CBC'}>DES-EDE3-CBC (192 $Lang::tr{'bit'})</option>
-				<option value='DESX-CBC' $selected{'DCIPHER'}{'DESX-CBC'}>DESX-CBC (192 $Lang::tr{'bit'})</option>
-				<option value='SEED-CBC' $selected{'DCIPHER'}{'SEED-CBC'}>SEED-CBC (128 $Lang::tr{'bit'})</option>
-				<option value='DES-EDE-CBC' $selected{'DCIPHER'}{'DES-EDE-CBC'}>DES-EDE-CBC (128 $Lang::tr{'bit'})</option>
-				<option value='BF-CBC' $selected{'DCIPHER'}{'BF-CBC'}>BF-CBC (128 $Lang::tr{'bit'})</option>
-				<option value='CAST5-CBC' $selected{'DCIPHER'}{'CAST5-CBC'}>CAST5-CBC (128 $Lang::tr{'bit'})</option>
-			</select>
-		</td>
-
+			<optgroup label="$Lang::tr{'Strong algorithm'}">
+				<option value='AES-256-GCM'			$selected{'DCIPHER'}{'AES-256-GCM'}>AES-GCM (256 $Lang::tr{'bit'})</option>
+				<option value='AES-256-CBC' 	 	$selected{'DCIPHER'}{'AES-256-CBC'}>AES-CBC (256 $Lang::tr{'bit'}, $Lang::tr{'default'})</option>
+				<option value='CAMELLIA-256-CBC'	$selected{'DCIPHER'}{'CAMELLIA-256-CBC'}>CAMELLIA-CBC (256 $Lang::tr{'bit'})</option>
+				<option value='AES-192-GCM' 	 	$selected{'DCIPHER'}{'AES-192-GCM'}>AES-GCM (192 $Lang::tr{'bit'})</option>
+				<option value='AES-192-CBC' 	 	$selected{'DCIPHER'}{'AES-192-CBC'}>AES-CBC (192 $Lang::tr{'bit'})</option>
+				<option value='CAMELLIA-192-CBC'	$selected{'DCIPHER'}{'CAMELLIA-192-CBC'}>CAMELLIA-CBC (192 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Medium algorithm'}">
+				<option value='AES-128-GCM' 	 	$selected{'DCIPHER'}{'AES-128-GCM'}>AES-GCM (128 $Lang::tr{'bit'})</option>
+				<option value='AES-128-CBC' 	 	$selected{'DCIPHER'}{'AES-128-CBC'}>AES-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='CAMELLIA-128-CBC'	$selected{'DCIPHER'}{'CAMELLIA-128-CBC'}>CAMELLIA-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='SEED-CBC' 		$selected{'DCIPHER'}{'SEED-CBC'}>SEED-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='CAST5-CBC' 		$selected{'DCIPHER'}{'CAST5-CBC'}>CAST5-CBC (128 $Lang::tr{'bit'})</option>
+			<optgroup label="$Lang::tr{'Weak algorithm'}">
+				<option value='DES-EDE3-CBC'	 	$selected{'DCIPHER'}{'DES-EDE3-CBC'}>DES-EDE3-CBC (192 $Lang::tr{'bit'})</option>
+				<option value='DESX-CBC' 		$selected{'DCIPHER'}{'DESX-CBC'}>DESX-CBC (192 $Lang::tr{'bit'})</option>
+				<option value='DES-EDE-CBC' 		$selected{'DCIPHER'}{'DES-EDE-CBC'}>DES-EDE-CBC (128 $Lang::tr{'bit'})</option>
+				<option value='BF-CBC' 			$selected{'DCIPHER'}{'BF-CBC'}>BF-CBC (128 $Lang::tr{'bit'})</option>
+			</optgroup>
+		</select></td>
 	</tr>
     <tr><td colspan='4'><br><br></td></tr>
 END
