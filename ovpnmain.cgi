@@ -96,6 +96,7 @@ $cgiparams{'PMTU_DISCOVERY'} = '';
 $cgiparams{'DCIPHER'} = '';
 $cgiparams{'DAUTH'} = '';
 $cgiparams{'TLSAUTH'} = '';
+$cgiparams{'NCP'} = '';
 $routes_push_file = "${General::swroot}/ovpn/routes_push";
 
 # Add CCD files if not already presant
@@ -216,7 +217,7 @@ sub writeserverconf {
     print CONF "dev tun\n";
     print CONF "proto $sovpnsettings{'DPROTOCOL'}\n";
     print CONF "port $sovpnsettings{'DDEST_PORT'}\n";
-    print CONF "script-security 3 system\n";
+    print CONF "script-security 3\n";
     print CONF "ifconfig-pool-persist /var/ipfire/ovpn/ovpn-leases.db 3600\n";
     print CONF "client-config-dir /var/ipfire/ovpn/ccd\n";
     print CONF "tls-server\n";
@@ -294,6 +295,11 @@ sub writeserverconf {
     }	
     print CONF "status-version 1\n";
     print CONF "status /var/run/ovpnserver.log 30\n";
+    if ($sovpnsettings{'NCP'} eq 'on') {
+		print CONF "ncp-ciphers AES-256-GCM:AES-256-CBC:CAMELLIA-256-CBC\n";
+    } else {
+		print CONF "ncp-disable\n";
+    }
     print CONF "cipher $sovpnsettings{DCIPHER}\n";
     if ($sovpnsettings{'DAUTH'} eq '') {
         print CONF "";
@@ -1202,6 +1208,7 @@ if ($cgiparams{'ACTION'} eq $Lang::tr{'save'} && $cgiparams{'TYPE'} eq '' && $cg
     $vpnsettings{'DMTU'} = $cgiparams{'DMTU'};
     $vpnsettings{'DCOMPLZO'} = $cgiparams{'DCOMPLZO'};
     $vpnsettings{'DCIPHER'} = $cgiparams{'DCIPHER'};
+    $vpnsettings{'NCP'} = $cgiparams{'NCP'};
 #wrtie enable
 
   if ( $vpnsettings{'ENABLED_BLUE'} eq 'on' ) {system("touch ${General::swroot}/ovpn/enable_blue 2>/dev/null");}else{system("unlink ${General::swroot}/ovpn/enable_blue 2>/dev/null");}
@@ -3668,6 +3675,9 @@ if ($confighash{$cgiparams{'KEY'}}) {
 		$cgiparams{'DAUTH'}		= $confighash{$cgiparams{'KEY'}}[39];
 		$cgiparams{'DCIPHER'}		= $confighash{$cgiparams{'KEY'}}[40];
 		$cgiparams{'TLSAUTH'}		= $confighash{$cgiparams{'KEY'}}[41];
+		$cgiparams{'NCP'}		= $confighash{$cgiparams{'KEY'}}[42];
+		$cgiparams{'NCPCCD'}		= $confighash{$cgiparams{'KEY'}}[43];
+
 	} elsif ($cgiparams{'ACTION'} eq $Lang::tr{'save'}) {
 	$cgiparams{'REMARK'} = &Header::cleanhtml($cgiparams{'REMARK'});
 	
@@ -4377,7 +4387,7 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	
 	if (! $key) {
 	    $key = &General::findhasharraykey (\%confighash);
-	    foreach my $i (0 .. 43) { $confighash{$key}[$i] = "";}
+	    foreach my $i (0 .. 44) { $confighash{$key}[$i] = "";}
 	}
 	$confighash{$key}[0] 		= $cgiparams{'ENABLED'};
 	$confighash{$key}[1] 		= $cgiparams{'NAME'};
@@ -4423,6 +4433,8 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	$confighash{$key}[38]		= $cgiparams{'PMTU_DISCOVERY'};
 	$confighash{$key}[39]		= $cgiparams{'DAUTH'};
 	$confighash{$key}[40]		= $cgiparams{'DCIPHER'};
+	$confighash{$key}[42]		= $cgiparams{'NCP'};
+	$confighash{$key}[43]		= $cgiparams{'NCPCCD'};
 
 	if (($cgiparams{'TYPE'} eq 'host') && ($cgiparams{'CERT_PASS1'} eq "")) {
 		$confighash{$key}[41] = "no-pass";
@@ -4448,6 +4460,10 @@ if ($cgiparams{'TYPE'} eq 'net') {
 			if ($confighash{$key}[34] eq 'on'){
 				print CCDRWCONF "\n#Redirect Gateway: \n#All IP traffic is redirected through the vpn \n";
 				print CCDRWCONF "push redirect-gateway\n";
+			}
+			if ($confighash{$key}[43] eq 'on') {
+				print CCDRWCONF "\n#Cipher negotiation: \n#Automatic negotiation will be disabled \n";
+				print CCDRWCONF "ncp-disable \n";
 			}
 			&General::readhasharray("${General::swroot}/ovpn/ccdroute", \%ccdroutehash);
 			if ($cgiparams{'IR'} ne ''){
@@ -4824,6 +4840,7 @@ if ($cgiparams{'TYPE'} eq 'host') {
 	    print"</td></tr></table><br><br>";
 		my $name=$cgiparams{'CHECK1'};
 		$checked{'RG'}{$cgiparams{'RG'}} = 'CHECKED';
+		$checked{'NCPCCD'}{$cgiparams{'NCPCCD'}} = 'CHECKED';
 		
 	if (! -z "${General::swroot}/ovpn/ccd.conf"){	
 		print"<table border='0' width='100%' cellspacing='1' cellpadding='0'><tr><td width='1%'></td><td width='30%' class='boldbase' align='center'><b>$Lang::tr{'ccd name'}</td><td width='15%' class='boldbase' align='center'><b>$Lang::tr{'network'}</td><td class='boldbase' align='center' width='18%'><b>$Lang::tr{'ccd clientip'}</td></tr>";
@@ -4960,6 +4977,8 @@ if ($cgiparams{'TYPE'} eq 'host') {
 	print <<END;
 	<table border='0' width='100%'>
 	<tr><td width='20%'>Redirect Gateway:</td><td colspan='3'><input type='checkbox' name='RG' $checked{'RG'}{'on'} /></td></tr>
+	<tr><td>&nbsp;</td>
+	<tr><td width='20%'>$Lang::tr{'ccd ncp'}</td><td colspan='3'><input type='checkbox' name='NCPCCD' $checked{'NCPCCD'}{'on'} /></td></tr>
 	<tr><td colspan='4'><b><br>$Lang::tr{'ccd routes'}</b></td></tr>
 	<tr><td colspan='4'>&nbsp</td></tr>
 	<tr><td valign='top'>$Lang::tr{'ccd iroute'}</td><td align='left' width='30%'><textarea name='IR' cols='26' rows='6' wrap='off'>
@@ -5110,6 +5129,9 @@ END
     if ($cgiparams{'DCIPHER'} eq '') {
 		$cgiparams{'DCIPHER'} =  'AES-256-CBC';
     }
+    if ($cgiparams{'NCP'} eq '') {
+		$cgiparams{'NCP'} = 'off';
+    }
     if ($cgiparams{'DDEST_PORT'} eq '') {
 		$cgiparams{'DDEST_PORT'} =  '1194';
     }
@@ -5165,6 +5187,14 @@ END
     $checked{'DCOMPLZO'}{'on'} = '';
     $checked{'DCOMPLZO'}{$cgiparams{'DCOMPLZO'}} = 'CHECKED';
 
+	$checked{'NCP'}{'off'} = '';
+	$checked{'NCP'}{'on'} = '';
+	$checked{'NCP'}{$cgiparams{'NCP'}} = 'CHECKED';
+
+	$checked{'NCPCCD'}{'off'} = '';
+	$checked{'NCPCCD'}{'on'} = '';
+	$checked{'NCPCCD'}{$cgiparams{'NCPCCD'}} = 'CHECKED';
+
 # m.a.d
     $checked{'MSSFIX'}{'off'} = '';
     $checked{'MSSFIX'}{'on'} = '';
@@ -5205,9 +5235,9 @@ END
 	print <<END;
     <table width='100%' border='0'>
     <form method='post'>
-    <td width='25%'>&nbsp;</td>
-    <td width='25%'>&nbsp;</td>
-    <td width='25%'>&nbsp;</td></tr>
+    <td width='30%'>&nbsp;</td>
+    <td width='30%'>&nbsp;</td>
+    <td width='30%'>&nbsp;</td></tr>
     <tr><td class='boldbase'>$Lang::tr{'ovpn server status'}</td>
     <td align='left'>$sactive</td>
     <tr><td class='boldbase'>$Lang::tr{'ovpn on red'}</td>
@@ -5225,13 +5255,22 @@ END
     print <<END;
     <tr><td class='base' nowrap='nowrap' colspan='2'>$Lang::tr{'local vpn hostname/ip'}:<br /><input type='text' name='VPN_IP' value='$cgiparams{'VPN_IP'}' size='30' /></td>
 	<td class='boldbase' nowrap='nowrap' colspan='2'>$Lang::tr{'ovpn subnet'}<br /><input type='TEXT' name='DOVPN_SUBNET' value='$cgiparams{'DOVPN_SUBNET'}' size='30' /></td></tr>
+	<tr><td colspan='4'><br></td></tr>
     <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'protocol'}</td>
         <td><select name='DPROTOCOL'><option value='udp' $selected{'DPROTOCOL'}{'udp'}>UDP</option>
                			    <option value='tcp' $selected{'DPROTOCOL'}{'tcp'}>TCP</option></select></td>				    
         <td class='boldbase'>$Lang::tr{'destination port'}:</td>
         <td><input type='TEXT' name='DDEST_PORT' value='$cgiparams{'DDEST_PORT'}' size='5' /></td></tr>
-    <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'MTU'}&nbsp;</td>
+
+        <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'comp-lzo'}</td>
+        <td><input type='checkbox' name='DCOMPLZO' $checked{'DCOMPLZO'}{'on'} /></td>
+
+        <td class='boldbase' nowrap='nowrap'>$Lang::tr{'MTU'}&nbsp;</td>
         <td> <input type='TEXT' name='DMTU' VALUE='$cgiparams{'DMTU'}' size='5' /></td>
+    </tr>
+
+	<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'ovpn ncp'}</td>
+		<td><input type='checkbox' name='NCP' $checked{'NCP'}{'on'} /></td>
 
 		<td class='boldbase' nowrap='nowrap'>$Lang::tr{'cipher'}</td>
 		<td><select name='DCIPHER'>
@@ -5249,8 +5288,7 @@ END
 				<option value='CAST5-CBC' $selected{'DCIPHER'}{'CAST5-CBC'}>CAST5-CBC (128 $Lang::tr{'bit'})</option>
 			</select>
 		</td>
-    <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'comp-lzo'}</td>
-        <td><input type='checkbox' name='DCOMPLZO' $checked{'DCOMPLZO'}{'on'} /></td>
+
 	</tr>
     <tr><td colspan='4'><br><br></td></tr>
 END
