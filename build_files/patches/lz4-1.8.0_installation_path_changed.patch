@@ -1,0 +1,48 @@
+diff -Nur lz4-1.8.0.orig/lib/Makefile lz4-1.8.0/lib/Makefile
+--- lz4-1.8.0.orig/lib/Makefile	2017-08-17 17:55:30.000000000 +0000
++++ lz4-1.8.0/lib/Makefile	2017-09-04 06:38:35.724000000 +0000
+@@ -118,7 +118,7 @@
+ DESTDIR     ?=
+ # directory variables : GNU convention prefers lowercase
+ # support both lower and uppercase (BSD), use uppercase in script
+-prefix      ?= /usr/local
++prefix      ?= /usr
+ PREFIX      ?= $(prefix)
+ exec_prefix ?= $(PREFIX)
+ libdir      ?= $(exec_prefix)/lib
+diff -Nur lz4-1.8.0.orig/NEWS lz4-1.8.0/NEWS
+--- lz4-1.8.0.orig/NEWS	2017-08-17 17:55:30.000000000 +0000
++++ lz4-1.8.0/NEWS	2017-09-04 06:40:03.724000000 +0000
+@@ -83,7 +83,7 @@
+ New    : lz4 cli supports long commands (suggested by Takayuki Matsuoka)
+ New    : lz4frame & lz4cli frame content size support
+ New    : lz4frame supports skippable frames, as requested by Sergey Cherepanov
+-Changed: Default "make install" directory is /usr/local, as notified by Ron Johnson
++Changed: Default "make install" directory is /usr, as notified by Ron Johnson
+ New    : lz4 cli supports "pass-through" mode, requested by Neil Wilson
+ New    : datagen can generate sparse files
+ New    : scan-build tests, thanks to kind help by Takayuki Matsuoka
+diff -Nur lz4-1.8.0.orig/programs/Makefile lz4-1.8.0/programs/Makefile
+--- lz4-1.8.0.orig/programs/Makefile	2017-08-17 17:55:30.000000000 +0000
++++ lz4-1.8.0/programs/Makefile	2017-09-04 06:39:22.508000000 +0000
+@@ -126,7 +126,7 @@
+ DESTDIR     ?=
+ # directory variables : GNU convention prefers lowercase
+ # support both lower and uppercase (BSD), use uppercase in script
+-prefix      ?= /usr/local
++prefix      ?= /usr
+ PREFIX      ?= $(prefix)
+ exec_prefix ?= $(PREFIX)
+ bindir      ?= $(exec_prefix)/bin
+diff -Nur lz4-1.8.0.orig/tests/Makefile lz4-1.8.0/tests/Makefile
+--- lz4-1.8.0.orig/tests/Makefile	2017-08-17 17:55:30.000000000 +0000
++++ lz4-1.8.0/tests/Makefile	2017-09-04 06:38:52.508000000 +0000
+@@ -31,7 +31,7 @@
+ # ##########################################################################
+ 
+ DESTDIR ?=
+-PREFIX  ?= /usr/local
++PREFIX  ?= /usr
+ BINDIR  := $(PREFIX)/bin
+ MANDIR  := $(PREFIX)/share/man/man1
+ LZ4DIR  := ../lib
