@@ -519,6 +519,7 @@
 'ccd iroute' => 'IPFire hat Zugriff auf diese Netzwerke auf Clientseite: ',
 'ccd iroute2' => 'Client hat Zugriff auf diese Netzwerke auf IPFire-Seite: ',
 'ccd iroutehint' => 'Achtung! Wenn Sie diese Einstellungen ändern, muss der OpenVPN-Server neu gestartet werden!',
+'ccd lz4' => 'LZ4-v2-Kompression:',
 'ccd maxclients' => 'Mögliche Adressen',
 'ccd modify' => 'Netzwerk ändern',
 'ccd name' => 'Name',

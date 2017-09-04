@@ -1006,10 +1006,13 @@ if ( ! -e "${General::swroot}/ovpn/certs/tc.key") {
 	print SERVERCONF "tls-crypt ${General::swroot}/ovpn/certs/tc.key\n";
   }
 
-  if ($cgiparams{'COMPLZO'} eq 'on') {
-   print SERVERCONF "# Enable Compression\n";
-   print SERVERCONF "comp-lzo\n";
-     }
+  if ($cgiparams{'COMPLZO'} eq '') {
+	print SERVERCONF "";
+  } else {
+	print SERVERCONF "# Enable Compression\n";
+	print SERVERCONF "compress $cgiparams{'COMPLZO'}\n";
+  }
+
   print SERVERCONF "# Debug Level\n"; 
   print SERVERCONF "verb 3\n"; 
   print SERVERCONF "# Tunnel check\n"; 
@@ -1125,10 +1128,12 @@ unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General
 	print CLIENTCONF "tls-crypt ${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/tc.key\n";
   }
 
-  if ($cgiparams{'COMPLZO'} eq 'on') {
-   print CLIENTCONF "# Enable Compression\n";
-   print CLIENTCONF "comp-lzo\n";
-  }
+  if ($cgiparams{'COMPLZO'} eq '') {
+	print CLIENTFCONF "";
+  } else {
+	print CLIENTCONF "# Enable Compression\n";
+	print CLIENTCONF "compress $cgiparams{'COMPLZO'}\n";
+   }
   print CLIENTCONF "# Debug Level\n"; 
   print CLIENTCONF "verb 3\n"; 
   print CLIENTCONF "# Tunnel check\n"; 
@@ -2305,10 +2310,13 @@ if ($confighash{$cgiparams{'KEY'}}[3] eq 'net'){
 	$zip->addFile( "${General::swroot}/ovpn/certs/tc.key", "tc.key")  or die "Can't add file tc.key\n";
    }
 
-   if ($confighash{$cgiparams{'KEY'}}[30] eq 'on') {
-   print CLIENTCONF "# Enable Compression\n";
-   print CLIENTCONF "comp-lzo\n";
-     }
+   if ($confighash{$cgiparams{'KEY'}}[30] eq '') {
+	print CLIENTFCONF "";
+   } else {
+	print CLIENTCONF "# Enable Compression\n";
+	print CLIENTCONF "compress $confighash{$cgiparams{'KEY'}}[30]\n";
+   }
+
    print CLIENTCONF "# Debug Level\n"; 
    print CLIENTCONF "verb 3\n"; 
    print CLIENTCONF "# Tunnel check\n"; 
@@ -3530,8 +3538,6 @@ my @n2nproto2 = split(/ /, (grep { /^proto/ } @firen2nconf)[0]);
 my @n2nproto = split(/-/, $n2nproto2[1]);
 my @n2nport = split(/ /, (grep { /^port/ } @firen2nconf)[0]);
 my @n2ntunmtu = split(/ /, (grep { /^tun-mtu/ } @firen2nconf)[0]);
-my @n2ncomplzo = grep { /^comp-lzo/ } @firen2nconf;
-if ($n2ncomplzo[0] =~ /comp-lzo/){$complzoactive = "on";} else {$complzoactive = "off";}	
 my @n2nmssfix  = grep { /^mssfix/ } @firen2nconf;
 if ($n2nmssfix[0] =~ /mssfix/){$mssfixactive = "on";} else {$mssfixactive = "off";}
 #my @n2nmssfix = split(/ /, (grep { /^mssfix/ } @firen2nconf)[0]);
@@ -3545,6 +3551,7 @@ my @n2nlocalsub  = split(/ /, (grep { /^# remsub/ } @firen2nconf)[0]);
 my @n2ncipher = split(/ /, (grep { /^cipher/ } @firen2nconf)[0]);
 my @n2ntlscrypt = split(/ /, (grep { /^tls-crypt/ } @firen2nconf)[0]);
 if ($n2ntlscrypt[0] =~ /tls-crypt/){$tlscryptactive = "on";} else {$tlscryptactive = "off";}
+my @n2ncomplzo = split(/ /, (grep { /^compress/ } @firen2nconf)[0]);
 my @n2nauth = split(/ /, (grep { /^auth/ } @firen2nconf)[0]);;
 
 ###
@@ -3650,7 +3657,7 @@ foreach my $dkey (keys %confighash) {
 	$confighash{$key}[27] = "$n2novpnsub[0].$n2novpnsub[1].$n2novpnsub[2].0/255.255.255.0";
 	$confighash{$key}[28] = $n2nproto[0];
 	$confighash{$key}[29] = $n2nport[1];
-	$confighash{$key}[30] = $complzoactive;
+	$confighash{$key}[30] = $n2ncomplzo[1];
 	$confighash{$key}[31] = $n2ntunmtu[1];
 	$confighash{$key}[38] = $n2nmtudisc[1];
 	$confighash{$key}[39] = $n2nauth[1];
@@ -3690,7 +3697,7 @@ foreach my $dkey (keys %confighash) {
 		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'ovpn subnet'}</td><td><b>$confighash{$key}[27]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'protocol'}</td><td><b>$confighash{$key}[28]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'destination port'}:</td><td><b>$confighash{$key}[29]</b></td></tr>
-		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'comp-lzo'}</td><td><b>$confighash{$key}[30]</b></td></tr>
+		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'compression'}</td><td><b>$confighash{$key}[30]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>MSSFIX:</td><td><b>$confighash{$key}[23]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>Fragment:</td><td><b>$confighash{$key}[24]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'MTU'}</td><td><b>$confighash{$key}[31]</b></td></tr>
@@ -3806,6 +3813,7 @@ if ($confighash{$cgiparams{'KEY'}}) {
 		$cgiparams{'NCP'}		= $confighash{$cgiparams{'KEY'}}[42];
 		$cgiparams{'NCPCCD'}		= $confighash{$cgiparams{'KEY'}}[43];
 		$cgiparams{'TLSCRYPT'}		= $confighash{$cgiparams{'KEY'}}[44];
+		$cgiparams{'LZ4'}		= $confighash{$cgiparams{'KEY'}}[45];
 
 	} elsif ($cgiparams{'ACTION'} eq $Lang::tr{'save'}) {
 	$cgiparams{'REMARK'} = &Header::cleanhtml($cgiparams{'REMARK'});
@@ -4550,6 +4558,7 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	$confighash{$key}[42]		= $cgiparams{'NCP'};
 	$confighash{$key}[43]		= $cgiparams{'NCPCCD'};
 	$confighash{$key}[44]		= $cgiparams{'TLSCRYPT'};
+	$confighash{$key}[45]		= $cgiparams{'LZ4'};
 
 	if (($cgiparams{'TYPE'} eq 'host') && ($cgiparams{'CERT_PASS1'} eq "")) {
 		$confighash{$key}[41] = "no-pass";
@@ -4580,6 +4589,13 @@ if ($cgiparams{'TYPE'} eq 'net') {
 				print CCDRWCONF "\n#Cipher negotiation: \n#Automatic negotiation will be disabled \n";
 				print CCDRWCONF "ncp-disable \n";
 			}
+
+			if ($confighash{$key}[45] eq 'on') {
+				print CCDRWCONF "\n#lz4-v2 compression \n";
+				print CCDRWCONF "compress lz4-v2\n";
+				print CCDRWCONF "push \"compress lz4-v2\"\n";
+			}
+
 			&General::readhasharray("${General::swroot}/ovpn/ccdroute", \%ccdroutehash);
 			if ($cgiparams{'IR'} ne ''){
 				print CCDRWCONF "\n#Client routes these networks (behind Client)\n";
@@ -4722,9 +4738,15 @@ if ($cgiparams{'TYPE'} eq 'net') {
 
     $selected{'INTERFACE'}{$cgiparams{'INTERFACE'}} = 'SELECTED';
     
-    $checked{'COMPLZO'}{'off'} = '';
-    $checked{'COMPLZO'}{'on'} = '';
-    $checked{'COMPLZO'}{$cgiparams{'COMPLZO'}} = 'CHECKED';
+    $selected{'COMPLZO'}{'off'} = '';
+    $selected{'COMPLZO'}{'lzo'} = '';
+    $selected{'COMPLZO'}{'lz4-v2'} = '';
+    # If no compression has been chossen yet, select
+    # the old default (off) for compatiblity reasons.
+    if ($cgiparams{'COMPLZO'} eq '') {
+		$cgiparams{'COMPLZO'} = 'off';
+    }
+    $selected{'COMPLZO'}{$cgiparams{'COMPLZO'}} = 'SELECTED';
 
     $checked{'MSSFIX'}{'off'} = '';
     $checked{'MSSFIX'}{'on'} = '';
@@ -4886,8 +4908,12 @@ if ($cgiparams{'TYPE'} eq 'net') {
 		<td>$Lang::tr{'openvpn default'}: <span class="base">on</span></td>
 	</tr>
 
-        <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'comp-lzo'}</td>
-		<td><input type='checkbox' name='COMPLZO' $checked{'COMPLZO'}{'on'} /></td>
+	<tr><td class='boldbase'>$Lang::tr{'compression'}</td>
+		<td><select name='COMPLZO'>
+			<option value=''		$selected{'COMPLZO'}{'off'}>$Lang::tr{'off'}</option>
+			<option value='lzo'		$selected{'COMPLZO'}{'lzo'}>$Lang::tr{'comp-lzo'}</option>
+			<option value='lz4-v2'	$selected{'COMPLZO'}{'lz4-v2'}>$Lang::tr{'ccd lz4'}</option>
+			<td>$Lang::tr{'openvpn default'}: <span class="base">off</span></td>
 	</tr>
 
 	<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'ovpn mtu-disc'}</td>
@@ -4978,6 +5004,7 @@ if ($cgiparams{'TYPE'} eq 'host') {
 		my $name=$cgiparams{'CHECK1'};
 		$checked{'RG'}{$cgiparams{'RG'}} = 'CHECKED';
 		$checked{'NCPCCD'}{$cgiparams{'NCPCCD'}} = 'CHECKED';
+		$checked{'LZ4'}{$cgiparams{'LZ4'}} = 'CHECKED';
 		
 	if (! -z "${General::swroot}/ovpn/ccd.conf"){	
 		print"<table border='0' width='100%' cellspacing='1' cellpadding='0'><tr><td width='1%'></td><td width='30%' class='boldbase' align='center'><b>$Lang::tr{'ccd name'}</td><td width='15%' class='boldbase' align='center'><b>$Lang::tr{'network'}</td><td class='boldbase' align='center' width='18%'><b>$Lang::tr{'ccd clientip'}</td></tr>";
@@ -5116,6 +5143,8 @@ if ($cgiparams{'TYPE'} eq 'host') {
 	<tr><td width='20%'>Redirect Gateway:</td><td colspan='3'><input type='checkbox' name='RG' $checked{'RG'}{'on'} /></td></tr>
 	<tr><td>&nbsp;</td>
 	<tr><td width='20%'>$Lang::tr{'ccd ncp'}</td><td colspan='3'><input type='checkbox' name='NCPCCD' $checked{'NCPCCD'}{'on'} /></td></tr>
+	<tr><td>&nbsp;</td>
+	<tr><td width='20%'>$Lang::tr{'ccd lz4'}</td><td colspan='3'><input type='checkbox' name='LZ4' $checked{'LZ4'}{'on'} /></td></tr>
 	<tr><td colspan='4'><b><br>$Lang::tr{'ccd routes'}</b></td></tr>
 	<tr><td colspan='4'>&nbsp</td></tr>
 	<tr><td valign='top'>$Lang::tr{'ccd iroute'}</td><td align='left' width='30%'><textarea name='IR' cols='26' rows='6' wrap='off'>
@@ -5335,6 +5364,10 @@ END
 	$checked{'NCPCCD'}{'on'} = '';
 	$checked{'NCPCCD'}{$cgiparams{'NCPCCD'}} = 'CHECKED';
 
+	$checked{'LZ4'}{'off'} = '';
+	$checked{'LZ4'}{'on'} = '';
+	$checked{'LZ4'}{$cgiparams{'LZ4'}} = 'CHECKED';
+
 # m.a.d
     $checked{'MSSFIX'}{'off'} = '';
     $checked{'MSSFIX'}{'on'} = '';
@@ -5402,7 +5435,7 @@ END
         <td class='boldbase'>$Lang::tr{'destination port'}:</td>
         <td><input type='TEXT' name='DDEST_PORT' value='$cgiparams{'DDEST_PORT'}' size='5' /></td></tr>
 
-        <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'comp-lzo'}</td>
+        <tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'comp-lzo'}:</td>
         <td><input type='checkbox' name='DCOMPLZO' $checked{'DCOMPLZO'}{'on'} /></td>
 
         <td class='boldbase' nowrap='nowrap'>$Lang::tr{'MTU'}&nbsp;</td>
