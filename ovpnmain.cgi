@@ -913,7 +913,15 @@ my $ovsubnet =  "$ovsubnettemp[0].$ovsubnettemp[1].$ovsubnettemp[2]";
 my $tunmtu =  '';
 
 unless(-d "${General::swroot}/ovpn/n2nconf/"){mkdir "${General::swroot}/ovpn/n2nconf", 0755 or die "Unable to create dir $!";}
-unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}", 0770 or die "Unable to create dir $!";}   
+unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}", 0770 or die "Unable to create dir $!";}
+
+if ( ! -e "${General::swroot}/ovpn/certs/tc.key") {
+	system('/usr/sbin/openvpn', '--genkey', '--secret', "${General::swroot}/ovpn/certs/tc.key");
+	if ($?) {
+		$errormessage = "$Lang::tr{'openssl produced an error'}: $?";
+		goto ADV_ERROR;
+	}
+}
 
   open(SERVERCONF,    ">${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Unable to open ${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf: $!";
   
@@ -992,6 +1000,12 @@ unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General
 	print SERVERCONF "# HMAC algorithm\n";
 	print SERVERCONF "auth $cgiparams{'DAUTH'}\n";
   }
+
+  if ($cgiparams{'TLSCRYPT'} eq 'on') {
+	print SERVERCONF "# Control channel authentication\n";
+	print SERVERCONF "tls-crypt ${General::swroot}/ovpn/certs/tc.key\n";
+  }
+
   if ($cgiparams{'COMPLZO'} eq 'on') {
    print SERVERCONF "# Enable Compression\n";
    print SERVERCONF "comp-lzo\n";
@@ -1105,6 +1119,12 @@ unless(-d "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}"){mkdir "${General
 	print CLIENTCONF "# HMAC algorithm\n";
 	print CLIENTCONF "auth $cgiparams{'DAUTH'}\n";
   }
+
+  if ($cgiparams{'TLSCRYPT'} eq 'on' && -f "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/tc.key") {
+	print CLIENTCONF "# Control channel authentication\n";
+	print CLIENTCONF "tls-crypt ${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/tc.key\n";
+  }
+
   if ($cgiparams{'COMPLZO'} eq 'on') {
    print CLIENTCONF "# Enable Compression\n";
    print CLIENTCONF "comp-lzo\n";
@@ -1209,6 +1229,7 @@ if ($cgiparams{'ACTION'} eq $Lang::tr{'save'} && $cgiparams{'TYPE'} eq '' && $cg
     $vpnsettings{'DCOMPLZO'} = $cgiparams{'DCOMPLZO'};
     $vpnsettings{'DCIPHER'} = $cgiparams{'DCIPHER'};
     $vpnsettings{'NCP'} = $cgiparams{'NCP'};
+    $vpnsettings{'TLSCRYPT'} = $cgiparams{'TLSCRYPT'};
 #wrtie enable
 
   if ( $vpnsettings{'ENABLED_BLUE'} eq 'on' ) {system("touch ${General::swroot}/ovpn/enable_blue 2>/dev/null");}else{system("unlink ${General::swroot}/ovpn/enable_blue 2>/dev/null");}
@@ -2193,6 +2214,7 @@ if ($confighash{$cgiparams{'KEY'}}[3] eq 'net'){
         my $tunmtu = ''; 
         my @remsubnet = split(/\//,$confighash{$cgiparams{'KEY'}}[8]);
         my $n2nfragment = '';
+        my $tckey = "$confighash{$cgiparams{'KEY'}}[44]";
         
     open(CLIENTCONF, ">$tempdir/$clientovpn") or die "Unable to open tempfile: $!";
     flock CLIENTCONF, 2;
@@ -2276,6 +2298,13 @@ if ($confighash{$cgiparams{'KEY'}}[3] eq 'net'){
    print CLIENTCONF "# HMAC algorithm\n";
    print CLIENTCONF "auth $confighash{$cgiparams{'KEY'}}[39]\n";
    }
+
+   if ($confighash{$cgiparams{'KEY'}}[44] eq 'on' && -f "${General::swroot}/ovpn/certs/tc.key") {
+	print CLIENTCONF "# Control channel authentication\n";
+	print CLIENTCONF "tls-crypt ${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key\n";
+	$zip->addFile( "${General::swroot}/ovpn/certs/tc.key", "tc.key")  or die "Can't add file tc.key\n";
+   }
+
    if ($confighash{$cgiparams{'KEY'}}[30] eq 'on') {
    print CLIENTCONF "# Enable Compression\n";
    print CLIENTCONF "comp-lzo\n";
@@ -2552,8 +2581,13 @@ else
 
 			my $conffile = glob("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/$confighash{$cgiparams{'KEY'}}[1].conf");
 			my $certfile = glob("${General::swroot}/ovpn/certs/$confighash{$cgiparams{'KEY'}}[1].p12");
+			my $tckey  = glob("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key");
 			unlink ($certfile);
 			unlink ($conffile);
+
+			if (-f "${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key") {
+				unlink ($tckey);
+			}
 
 			if (-e "${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]") {
 				rmdir ("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]") || die "Kann Verzeichnis nicht loeschen: $!";
@@ -2562,6 +2596,10 @@ else
 
 		unlink ("${General::swroot}/ovpn/certs/$confighash{$cgiparams{'KEY'}}[1]cert.pem");
 		unlink ("${General::swroot}/ovpn/certs/$confighash{$cgiparams{'KEY'}}[1].p12");
+
+		if (-f "${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key") {
+			unlink ("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key");
+		}
 
 # A.Marx CCD delete ccd files and routes
 
@@ -3335,6 +3373,8 @@ END
 	my $uplconffilename2 ='';
 	my $uplp12name = '';
 	my $uplp12name2 = '';
+	my $upltckey = '';
+	my $upltckey2 = '';
 	my @rem_subnet;
 	my @rem_subnet2;
 	my @tmposupnet3;	
@@ -3375,7 +3415,7 @@ END
 
 # Check if we have not more then 2 files
 
-	if ( $countfiles == 2){
+	if (($countfiles == 2) || ($countfiles == 3)) {
 		foreach (@files){
 			if ( $_ =~ /.conf$/){
 				$uplconffilename = $_;
@@ -3387,6 +3427,23 @@ END
 		if (($uplconffilename eq '') || ($uplp12name eq '')){
 			$errormessage = "Either no *.conf or no *.p12 file found\n";
 			goto N2N_ERROR;
+		# Check if we have not more then 3 files
+		} elsif ( $countfiles == 3) {
+			foreach (@files){
+				if ( $_ =~ /.conf$/){
+					$uplconffilename = $_;
+				}
+				if ( $_ =~ /.p12$/){
+					$uplp12name = $_;
+				}
+				if ( $_ =~ /.key$/){
+					$upltckey = $_;
+				}
+			}
+			if (($uplconffilename eq '') || ($uplp12name eq '') || ($upltckey eq '')) {
+				$errormessage = "Either no *.conf or no *.p12 or if activated, no tc.key file found\n";
+				goto N2N_ERROR;
+			}
 		}
 
 		open(FILE, "$tempdir/$uplconffilename") or die 'Unable to open*.conf file';
@@ -3395,7 +3452,7 @@ END
 		chomp(@firen2nconf);
 	} else {
 
-		$errormessage = "Filecount does not match only 2 files are allowed\n";
+		$errormessage = "Filecount does not match, the ZIP archive contains wrong files\n";
 		goto N2N_ERROR;
 	}
 
@@ -3427,6 +3484,7 @@ END
     }else{
     $uplconffilename2 =  $uplconffilename;
     $uplp12name2 = $uplp12name;
+    $upltckey2 = $upltckey;
     @n2nname = split(/\./,$uplconffilename);
     $n2nname[0] =~ s/\n|\r//g;
    } 
@@ -3450,7 +3508,12 @@ END
 	
 	move("$tempdir/$uplp12name", "${General::swroot}/ovpn/certs/$uplp12name2");
 	chmod 0600, "${General::swroot}/ovpn/certs/$uplp12name";
-	
+
+	if (-f "$tempdir/$upltckey") {
+		move("$tempdir/$upltckey", "${General::swroot}/ovpn/n2nconf/$n2nname[0]/$upltckey");
+		chmod 0400, "${General::swroot}/ovpn/n2nconf/$n2nname[0]/$upltckey";
+	}
+
 	if ($? ne 0) {
 	    $errormessage = "$Lang::tr{'certificate file move failed'}: $!";
 	    unlink ($filename);
@@ -3460,6 +3523,7 @@ END
 my $complzoactive;
 my $mssfixactive;
 my $authactive;
+my $tlscryptactive;
 my $n2nfragment;
 my @n2nmtudisc = split(/ /, (grep { /^mtu-disc/ } @firen2nconf)[0]);
 my @n2nproto2 = split(/ /, (grep { /^proto/ } @firen2nconf)[0]);
@@ -3479,6 +3543,8 @@ my @n2nremsub = split(/ /, (grep { /^route/ } @firen2nconf)[0]);
 my @n2nmgmt =  split(/ /, (grep { /^management/ } @firen2nconf)[0]);
 my @n2nlocalsub  = split(/ /, (grep { /^# remsub/ } @firen2nconf)[0]);
 my @n2ncipher = split(/ /, (grep { /^cipher/ } @firen2nconf)[0]);
+my @n2ntlscrypt = split(/ /, (grep { /^tls-crypt/ } @firen2nconf)[0]);
+if ($n2ntlscrypt[0] =~ /tls-crypt/){$tlscryptactive = "on";} else {$tlscryptactive = "off";}
 my @n2nauth = split(/ /, (grep { /^auth/ } @firen2nconf)[0]);;
 
 ###
@@ -3502,6 +3568,7 @@ $n2ncipher[1] =~ s/\n|\r//g;
 $n2nauth[1] =~ s/\n|\r//g;
 chomp ($complzoactive);
 chomp ($mssfixactive);
+chomp ($tlscryptactive);
 
 ###
 # m.a.d net2net
@@ -3511,13 +3578,30 @@ chomp ($mssfixactive);
 # Check if there is no other entry with this name
 ###
 
+	# Function to unlink and delete n2n client directory if check do not match
+	sub del_dir_n2nclient
+	{
+		unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
+		if (-f "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/tc.key") {
+			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/tc.key") or die "Removing tc.key fail: $!";
+		}
+		rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+	}
+
+	# Function to unlink and delete n2n server directory if check do not match
+	sub del_dir_n2nserver
+	{
+        unlink ("${General::swroot}/ovpn/n2nconf/$n2nname[0]/$n2nname[0].conf") or die "Removing Configfile fail: $!";
+        unlink ("${General::swroot}/ovpn/certs/$n2nname[0].p12") or die "Removing Certfile fail: $!";
+        rmdir ("${General::swroot}/ovpn/n2nconf/$n2nname[0]") || die "Removing Directory fail: $!";
+        goto N2N_ERROR
+	}
+
+
 	foreach my $dkey (keys %confighash) {
 		if ($confighash{$dkey}[1] eq $n2nname[0]) {
 			$errormessage = $Lang::tr{'a connection with this name already exists'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$n2nname[0]/$n2nname[0].conf") or die "Removing Configfile fail: $!";
-	    unlink ("${General::swroot}/ovpn/certs/$n2nname[0].p12") or die "Removing Certfile fail: $!";
-      rmdir ("${General::swroot}/ovpn/n2nconf/$n2nname[0]") || die "Removing Directory fail: $!";
-			goto N2N_ERROR;			
+			&del_dir_n2nserver;
 		}
 	}
 
@@ -3528,10 +3612,7 @@ chomp ($mssfixactive);
 foreach my $dkey (keys %confighash) {
 		if ($confighash{$dkey}[27] eq "$n2novpnsub[0].$n2novpnsub[1].$n2novpnsub[2].0/255.255.255.0") {
 			$errormessage = 'The OpenVPN Subnet is already in use';
-			unlink ("${General::swroot}/ovpn/n2nconf/$n2nname[0]/$n2nname[0].conf") or die "Removing Configfile fail: $!";
-	    unlink ("${General::swroot}/ovpn/certs/$n2nname[0].p12") or die "Removing Certfile fail: $!";
-      rmdir ("${General::swroot}/ovpn/n2nconf/$n2nname[0]") || die "Removing Directory fail: $!";
-			goto N2N_ERROR;			
+			&del_dir_n2nserver;
 		}
 	}
 
@@ -3542,10 +3623,7 @@ foreach my $dkey (keys %confighash) {
 foreach my $dkey (keys %confighash) {
 		if ($confighash{$dkey}[29] eq $n2nport[1] ) {
 			$errormessage = 'The OpenVPN Port is already in use';
-			unlink ("${General::swroot}/ovpn/n2nconf/$n2nname[0]/$n2nname[0].conf") or die "Removing Configfile fail: $!";
-	    unlink ("${General::swroot}/ovpn/certs/$n2nname[0].p12") or die "Removing Certfile fail: $!";
-      rmdir ("${General::swroot}/ovpn/n2nconf/$n2nname[0]") || die "Removing Directory fail: $!";
-			goto N2N_ERROR;			
+			&del_dir_n2nserver;
 		}
 	}
 	
@@ -3553,7 +3631,7 @@ foreach my $dkey (keys %confighash) {
 	
   $key = &General::findhasharraykey (\%confighash);
 
-	foreach my $i (0 .. 42) { $confighash{$key}[$i] = "";}
+	foreach my $i (0 .. 45) { $confighash{$key}[$i] = "";}
 
 	$confighash{$key}[0] = 'off';
 	$confighash{$key}[1] = $n2nname[0];
@@ -3578,6 +3656,8 @@ foreach my $dkey (keys %confighash) {
 	$confighash{$key}[39] = $n2nauth[1];
 	$confighash{$key}[40] = $n2ncipher[1];
 	$confighash{$key}[41] = 'disabled';
+	$confighash{$key}[44] = $tlscryptactive;
+
 
   &General::writehasharray("${General::swroot}/ovpn/ovpnconfig", \%confighash);
  
@@ -3618,6 +3698,7 @@ foreach my $dkey (keys %confighash) {
 		<tr><td class='boldbase' nowrap='nowrap'>Management Port </td><td><b>$confighash{$key}[22]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'ovpn hmac'}:</td><td><b>$confighash{$key}[39]</b></td></tr>
 		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'cipher'}</td><td><b>$confighash{$key}[40]</b></td></tr>
+		<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'tls crypt'}</td><td><b>$confighash{$key}[44]</b></td></tr>
 		<tr><td>&nbsp;</td><td>&nbsp;</td></tr>	
     </table>
 END
@@ -3656,8 +3737,12 @@ if ($confighash{$cgiparams{'KEY'}}) {
 
      my $conffile = glob("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/$confighash{$cgiparams{'KEY'}}[1].conf");
      my $certfile = glob("${General::swroot}/ovpn/certs/$confighash{$cgiparams{'KEY'}}[1].p12");
+     my $tckey  = glob("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key");
      unlink ($certfile) or die "Removing $certfile fail: $!";
      unlink ($conffile) or die "Removing $conffile fail: $!";
+	 if (-f "${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]/tc.key") {
+		unlink ($tckey);
+	 }
      rmdir ("${General::swroot}/ovpn/n2nconf/$confighash{$cgiparams{'KEY'}}[1]") || die "Kann Verzeichnis nicht loeschen: $!";
      delete $confighash{$cgiparams{'KEY'}};
     &General::writehasharray("${General::swroot}/ovpn/ovpnconfig", \%confighash);	
@@ -3720,6 +3805,7 @@ if ($confighash{$cgiparams{'KEY'}}) {
 		$cgiparams{'TLSAUTH'}		= $confighash{$cgiparams{'KEY'}}[41];
 		$cgiparams{'NCP'}		= $confighash{$cgiparams{'KEY'}}[42];
 		$cgiparams{'NCPCCD'}		= $confighash{$cgiparams{'KEY'}}[43];
+		$cgiparams{'TLSCRYPT'}		= $confighash{$cgiparams{'KEY'}}[44];
 
 	} elsif ($cgiparams{'ACTION'} eq $Lang::tr{'save'}) {
 	$cgiparams{'REMARK'} = &Header::cleanhtml($cgiparams{'REMARK'});
@@ -3896,8 +3982,7 @@ if ($cgiparams{'TYPE'} eq 'host') {
  if ($cgiparams{'TYPE'} !~ /^(host|net)$/) {
 	    $errormessage = $Lang::tr{'connection type is invalid'};
 	    if ($cgiparams{'TYPE'} eq 'net') {
-      unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+			&del_dir_n2nclient;
       }
 	    goto VPNCONF_ERROR;
 	}
@@ -3905,29 +3990,26 @@ if ($cgiparams{'TYPE'} eq 'host') {
 
 	if ($cgiparams{'NAME'} !~ /^[a-zA-Z0-9]+$/) {
 	    $errormessage = $Lang::tr{'name must only contain characters'};
-      if ($cgiparams{'TYPE'} eq 'net') {
-      unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      }
-      goto VPNCONF_ERROR;
-  }
+		if ($cgiparams{'TYPE'} eq 'net') {
+			&del_dir_n2nclient;
+		}
+		goto VPNCONF_ERROR;
+	}
 
 	if ($cgiparams{'NAME'} =~ /^(host|01|block|private|clear|packetdefault)$/) {
 	    $errormessage = $Lang::tr{'name is invalid'};
 	    if ($cgiparams{'TYPE'} eq 'net') {
-      unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      }
+			&del_dir_n2nclient;
+		}
 	    goto VPNCONF_ERROR;
 	}
 
 	if (length($cgiparams{'NAME'}) >60) {
 	    $errormessage = $Lang::tr{'name too long'};
 	    if ($cgiparams{'TYPE'} eq 'net') {
-      unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      }
-	    goto VPNCONF_ERROR;
+			&del_dir_n2nclient;
+		}
+		goto VPNCONF_ERROR;
 	}
 
 ###
@@ -3936,99 +4018,86 @@ if ($cgiparams{'TYPE'} eq 'host') {
 
 if ($cgiparams{'TYPE'} eq 'net') {
 	if ($cgiparams{'DEST_PORT'} eq  $vpnsettings{'DDEST_PORT'}) {
-			$errormessage = $Lang::tr{'openvpn destination port used'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      goto VPNCONF_ERROR;			
+		$errormessage = $Lang::tr{'openvpn destination port used'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
 		}
     #Bugfix 10357
     foreach my $key (sort keys %confighash){
 		if ( ($confighash{$key}[22] eq $cgiparams{'DEST_PORT'} && $cgiparams{'NAME'} ne $confighash{$key}[1]) || ($confighash{$key}[29] eq $cgiparams{'DEST_PORT'} && $cgiparams{'NAME'} ne $confighash{$key}[1])){
 			$errormessage = $Lang::tr{'openvpn destination port used'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      goto VPNCONF_ERROR;	
+			&del_dir_n2nclient;
+			goto VPNCONF_ERROR;
 		}
 	}
     if ($cgiparams{'DEST_PORT'} eq  '') {
-			$errormessage = $Lang::tr{'invalid port'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      goto VPNCONF_ERROR;			
+		$errormessage = $Lang::tr{'invalid port'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
 		}
 
     # Check if the input for the transfer net is valid.
     if (!&General::validipandmask($cgiparams{'OVPN_SUBNET'})){
-			$errormessage = $Lang::tr{'ccd err invalidnet'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-			goto VPNCONF_ERROR;
-		}
+		$errormessage = $Lang::tr{'ccd err invalidnet'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
+	}
 
     if ($cgiparams{'OVPN_SUBNET'} eq  $vpnsettings{'DOVPN_SUBNET'}) {
-			$errormessage = $Lang::tr{'openvpn subnet is used'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-			goto VPNCONF_ERROR;			
-		}
+		$errormessage = $Lang::tr{'openvpn subnet is used'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
+	}
 
-	  if (($cgiparams{'PROTOCOL'} eq 'tcp') && ($cgiparams{'MSSFIX'} eq 'on')) {
+	if (($cgiparams{'PROTOCOL'} eq 'tcp') && ($cgiparams{'MSSFIX'} eq 'on')) {
 	    $errormessage = $Lang::tr{'openvpn mssfix allowed with udp'};
-	    unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+	    &del_dir_n2nclient;
 	    goto VPNCONF_ERROR;
     }
      
     if (($cgiparams{'PROTOCOL'} eq 'tcp') && ($cgiparams{'FRAGMENT'} ne '')) {
 	    $errormessage = $Lang::tr{'openvpn fragment allowed with udp'};
-	    unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+	    &del_dir_n2nclient;
 	    goto VPNCONF_ERROR;
     }
 
     if ($cgiparams{'PMTU_DISCOVERY'} ne 'off') {
 	if (($cgiparams{'FRAGMENT'} ne '') || ($cgiparams{'MSSFIX'} eq 'on')) {
 		$errormessage = $Lang::tr{'ovpn mtu-disc with mssfix or fragment'};
-		unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-		rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+		&del_dir_n2nclient;
 		goto VPNCONF_ERROR;
 	}
     }
 
     if (($cgiparams{'PMTU_DISCOVERY'} ne 'off') && ($cgiparams{'MTU'} ne '1500')) {
-	$errormessage = $Lang::tr{'ovpn mtu-disc and mtu not 1500'};
-	unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-	goto VPNCONF_ERROR;
+		$errormessage = $Lang::tr{'ovpn mtu-disc and mtu not 1500'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
     }
 
     if ( &validdotmask ($cgiparams{'LOCAL_SUBNET'}))  {
-		  $errormessage = $Lang::tr{'openvpn prefix local subnet'};
-		  unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-		  goto VPNCONF_ERROR;
-		} 
+		$errormessage = $Lang::tr{'openvpn prefix local subnet'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
+	}
     
     if ( &validdotmask ($cgiparams{'OVPN_SUBNET'}))  {
-		  $errormessage = $Lang::tr{'openvpn prefix openvpn subnet'};
-		  unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-		  goto VPNCONF_ERROR;
-		} 
+		$errormessage = $Lang::tr{'openvpn prefix openvpn subnet'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
+	}
     
     if ( &validdotmask ($cgiparams{'REMOTE_SUBNET'}))  {
-		  $errormessage = $Lang::tr{'openvpn prefix remote subnet'};
-		  unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-		  goto VPNCONF_ERROR;
-		}
+		$errormessage = $Lang::tr{'openvpn prefix remote subnet'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
+	}
 	
 	if ($cgiparams{'DEST_PORT'} <= 1023) {
 		$errormessage = $Lang::tr{'ovpn port in root range'};
-		  unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-		  goto VPNCONF_ERROR;
-		}
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
+	}
 
 	if ($cgiparams{'OVPN_MGMT'} eq '') {
 		$cgiparams{'OVPN_MGMT'} = $cgiparams{'DEST_PORT'};		
@@ -4036,10 +4105,16 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	
 	if ($cgiparams{'OVPN_MGMT'} <= 1023) {
 		$errormessage = $Lang::tr{'ovpn mgmt in root range'};
-		  unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	    rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-		  goto VPNCONF_ERROR;
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
 	}
+
+	# Check if tc.key on tls-client side is presant
+	if ($cgiparams{'TLSCRYPT'} eq 'on' && $cgiparams{'SIDE'} eq 'client' && ! -f "${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/tc.key") {
+		$errormessage = $Lang::tr{'tc key is missing'};
+		goto VPNCONF_ERROR;
+	}
+
 	#Check if remote subnet is used elsewhere
 	my ($n2nip,$n2nsub)=split("/",$cgiparams{'REMOTE_SUBNET'});
 	$warnmessage=&General::checksubnets('',$n2nip,'ovpn');
@@ -4059,11 +4134,10 @@ if ($cgiparams{'TYPE'} eq 'net') {
 		if ($confighash{$key}[1] eq $cgiparams{'NAME'}) {
 		    $errormessage = $Lang::tr{'a connection with this name already exists'};
 		    if ($cgiparams{'TYPE'} eq 'net') {
-        unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	      rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-        }
+				&del_dir_n2nclient;
+			}
 		    goto VPNCONF_ERROR;
-		}
+			}
 	    }
 	}
 
@@ -4071,11 +4145,8 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	if ($cgiparams{'TYPE'} eq 'net') {
 		if ($cgiparams{'SIDE'} ne 'server' && $cgiparams{'REMOTE'} eq '') {
 			$errormessage = $Lang::tr{'invalid input for remote host/ip'};
-
 			# Check if this is a N2N connection and drop temporary config.
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-			rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-
+			&del_dir_n2nclient;
 			goto VPNCONF_ERROR;
 		}
 
@@ -4086,11 +4157,8 @@ if ($cgiparams{'TYPE'} eq 'net') {
 				# Check for a valid domain.
 				if (! &General::validfqdn ($cgiparams{'REMOTE'}))  {
 					$errormessage = $Lang::tr{'invalid input for remote host/ip'};
-
 					# Check if this is a N2N connection and drop temporary config.
-					unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-					rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-
+					&del_dir_n2nclient;
 					goto VPNCONF_ERROR;
 				}
 			}
@@ -4098,38 +4166,36 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	}
 
 	if ($cgiparams{'TYPE'} ne 'host') {
-            unless (&General::validipandmask($cgiparams{'LOCAL_SUBNET'})) {
-	            $errormessage = $Lang::tr{'local subnet is invalid'}; 
-	            if ($cgiparams{'TYPE'} eq 'net') {
-              unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	            rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-              }
-			goto VPNCONF_ERROR;}
+		unless (&General::validipandmask($cgiparams{'LOCAL_SUBNET'})) {
+			$errormessage = $Lang::tr{'local subnet is invalid'};
+			if ($cgiparams{'TYPE'} eq 'net') {
+				&del_dir_n2nclient;
+			}
+			goto VPNCONF_ERROR;
+		}
 	}
 	# Check if there is no other entry without IP-address and PSK
 	if ($cgiparams{'REMOTE'} eq '') {
 	    foreach my $key (keys %confighash) {
-		if(($cgiparams{'KEY'} ne $key) && 
-		   ($confighash{$key}[4] eq 'psk' || $cgiparams{'AUTH'} eq 'psk') && 
-		    $confighash{$key}[10] eq '') {
-			$errormessage = $Lang::tr{'you can only define one roadwarrior connection when using pre-shared key authentication'};
-			goto VPNCONF_ERROR;
+			if(($cgiparams{'KEY'} ne $key) && 
+				($confighash{$key}[4] eq 'psk' || $cgiparams{'AUTH'} eq 'psk') && 
+				$confighash{$key}[10] eq '') {
+				$errormessage = $Lang::tr{'you can only define one roadwarrior connection when using pre-shared key authentication'};
+				goto VPNCONF_ERROR;
+			}
 		}
-	    }
 	}
 	if (($cgiparams{'TYPE'} eq 'net') && (! &General::validipandmask($cgiparams{'REMOTE_SUBNET'}))) {
-                $errormessage = $Lang::tr{'remote subnet is invalid'};
-                unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-	              rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
-      		goto VPNCONF_ERROR;
+		$errormessage = $Lang::tr{'remote subnet is invalid'};
+		&del_dir_n2nclient;
+		goto VPNCONF_ERROR;
 	}
 
 	# Check that OpenSSL maximum of valid days will not be exceeded
 	if ($cgiparams{'TYPE'} eq 'net') {
 		if (length($cgiparams{'DAYS_VALID'}) > 6) {
 			$errormessage = $Lang::tr{'invalid input for valid till days'};
-			unlink ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}/$cgiparams{'NAME'}.conf") or die "Removing Configfile fail: $!";
-			rmdir ("${General::swroot}/ovpn/n2nconf/$cgiparams{'NAME'}") || die "Removing Directory fail: $!";
+			&del_dir_n2nclient;
 			goto VPNCONF_ERROR;
 		}
 	}
@@ -4483,6 +4549,7 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	$confighash{$key}[40]		= $cgiparams{'DCIPHER'};
 	$confighash{$key}[42]		= $cgiparams{'NCP'};
 	$confighash{$key}[43]		= $cgiparams{'NCPCCD'};
+	$confighash{$key}[44]		= $cgiparams{'TLSCRYPT'};
 
 	if (($cgiparams{'TYPE'} eq 'host') && ($cgiparams{'CERT_PASS1'} eq "")) {
 		$confighash{$key}[41] = "no-pass";
@@ -4602,6 +4669,7 @@ if ($cgiparams{'TYPE'} eq 'net') {
         $cgiparams{'FRAGMENT'} = '1300';
 	$cgiparams{'PMTU_DISCOVERY'} = 'off';
 	$cgiparams{'DAUTH'} = 'SHA512';
+	$cgiparams{'TLSCRYPT'} = 'off';
 ###
 # m.a.d n2n end
 ###	
@@ -4700,6 +4768,10 @@ if ($cgiparams{'TYPE'} eq 'net') {
 	$cgiparams{'DAUTH'} = 'SHA1';
     }
     $selected{'DAUTH'}{$cgiparams{'DAUTH'}} = 'SELECTED';
+
+    $checked{'TLSCRYPT'}{'off'} = '';
+    $checked{'TLSCRYPT'}{'on'} = '';
+    $checked{'TLSCRYPT'}{$cgiparams{'TLSCRYPT'}} = 'CHECKED';
 
     if (1) {
 	&Header::showhttpheaders();
@@ -4868,6 +4940,11 @@ if ($cgiparams{'TYPE'} eq 'net') {
 			</optgroup>
 		</select></td>
 	</tr>
+
+	<tr><td class='boldbase' nowrap='nowrap'>$Lang::tr{'tls crypt'}</td>
+		<td><input type='checkbox' name='TLSCRYPT' $checked{'TLSCRYPT'}{'on'} /></td>
+	</tr>
+
 	<tr><td colspan=4><hr /></td></tr><tr>
 
 END
